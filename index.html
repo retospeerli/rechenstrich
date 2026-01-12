@@ -199,74 +199,109 @@
     setTimeout(() => { if(inputs[0]) inputs[0].focus(); }, 0);
   }
 
-  function drawTaskSVG(task){
-    clearSvg();
+ function drawTaskSVG(task){
+  clearSvg();
+  inputs = []; // wichtig: Inputs-Liste für Check/Enable
 
-    const W = 920;
-    const baseY = 220;
-    const leftPad = 80;
-    const rightPad = 80;
+  const W = 920;
+  const baseY = 220;
+  const leftPad = 90;
+  const rightPad = 90;
 
-    // Mappingbereich
-    const minV = Math.min(...task.points) - Math.max(10, Math.round(Math.abs(task.b) * 0.08));
-    const maxV = Math.max(...task.points) + Math.max(10, Math.round(Math.abs(task.b) * 0.08));
-    const xOf = (v) => {
-      const t = (v - minV) / (maxV - minV || 1);
-      return leftPad + t * (W - leftPad - rightPad);
-    };
+  // Punkte (Start + Zwischen + End)
+  const values = [task.a];
+  let cur = task.a;
+  for(const p of task.parts){
+    cur = task.mode === "add" ? (cur + p) : (cur - p);
+    values.push(cur);
+  }
 
-    // Grundlinie
-    svg.appendChild(el("line", { x1:leftPad, y1:baseY, x2:W-rightPad, y2:baseY, stroke:"#222", "stroke-width":6, "stroke-linecap":"round", opacity:0.75 }));
+  // --------- 1) X-Positionen nach Ratio (1er:1, 10er:2, 100er:4) und volle Breite
+  const usableW = W - leftPad - rightPad;
 
-    // Ticks:
-    // Startzahl (points[0]) ist als Zahl da (kein Input).
-    // Alle anderen Tick-Zahlen sind Inputs.
-    for(let i=0;i<task.points.length;i++){
-      const v = task.points[i];
-      const x = xOf(v);
+  // Gewichte pro Sprung aus task.parts ableiten
+  // 1..9 -> 1, 10..99 -> 2, >=100 -> 4
+  const weights = task.parts.map(p => {
+    const ap = Math.abs(p);
+    if (ap >= 100) return 4;
+    if (ap >= 10) return 2;
+    return 1;
+  });
 
-      svg.appendChild(el("line", { x1:x, y1:baseY-16, x2:x, y2:baseY+16, stroke:"#222", "stroke-width":6, "stroke-linecap":"round", opacity:0.85 }));
+  const sumW = weights.reduce((a,b)=>a+b,0) || 1;
+  const unit = usableW / sumW;
 
-      if(i === 0){
-        const t = el("text", { x, y: baseY + 56, "text-anchor":"middle", "font-size":44, "font-weight":500, fill:"#111" });
-        t.textContent = String(v);
-        svg.appendChild(t);
-      }else if(i === task.points.length - 1){
-        // Endergebnis: Input, aber "doppelt unterstrichen" darunter
-        const inp = addSvgInput({ x: x-55, y: baseY+24, w:110, h:46, placeholder:"?", id:`p${i}` });
+  // Tick-Positionen kumulativ aufbauen
+  const xs = [leftPad];
+  for (let i = 0; i < weights.length; i++) {
+    xs.push(xs[xs.length - 1] + weights[i] * unit);
+  }
+  // Rundungsfehler korrigieren: letzter Tick exakt am rechten Rand
+  xs[xs.length - 1] = W - rightPad;
 
-        // Doppelunterstrich
-        svg.appendChild(el("line", { x1:x-70, y1:baseY+78, x2:x+70, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
-        svg.appendChild(el("line", { x1:x-70, y1:baseY+86, x2:x+70, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
-      }else{
-        addSvgInput({ x: x-55, y: baseY+24, w:110, h:46, placeholder:"?", id:`p${i}` });
-      }
-    }
+  // --------- 2) Grundlinie
+  svg.appendChild(el("line", {
+    x1:leftPad, y1:baseY, x2:W-rightPad, y2:baseY,
+    stroke:"#222", "stroke-width":6, "stroke-linecap":"round", opacity:0.75
+  }));
 
-    // Bögen + Labels:
-    // Alle Sprungwerte (200/30/8) sind ebenfalls Inputs.
-    const arcStroke = "#555";
-    const arcWidth = 4;
+  // --------- 3) Ticks + Zahlen/Inputs unten (Start fix, Rest Inputs)
+  for(let i=0;i<values.length;i++){
+    const x = xs[i];
 
-    for(let i=0;i<task.parts.length;i++){
-      const p = task.parts[i];
-      const from = task.points[i];
-      const to   = task.points[i+1];
+    svg.appendChild(el("line", {
+      x1:x, y1:baseY-16, x2:x, y2:baseY+16,
+      stroke:"#222", "stroke-width":6, "stroke-linecap":"round", opacity:0.85
+    }));
 
-      const x1 = xOf(from);
-      const x2 = xOf(to);
-      const dx = Math.abs(x2-x1);
-      const arcH = clamp(30 + dx*0.18, 28, 95);
-      const topY = baseY - arcH;
-      const mx = (x1+x2)/2;
+    if(i === 0){
+      const t = el("text", {
+        x, y: baseY + 56,
+        "text-anchor":"middle",
+        "font-size":44,
+        "font-weight":500,
+        fill:"#111"
+      });
+      t.textContent = String(values[i]);
+      svg.appendChild(t);
+    } else if(i === values.length - 1){
+      // Endergebnis: Input + Doppelunterstrich
+      addSvgInput({ x: x-55, y: baseY+24, w:110, h:46, placeholder:"?", id:`p${i}` });
 
-      const d = `M ${x1} ${baseY} Q ${mx} ${topY} ${x2} ${baseY}`;
-      svg.appendChild(el("path", { d, fill:"none", stroke:arcStroke, "stroke-width":arcWidth, "stroke-linecap":"round" }));
-
-      // Sprung-Input über dem Bogen (statt Text "200")
-      addSvgInput({ x: mx-45, y: topY-58, w:90, h:44, placeholder:"?", id:`jump${i}` });
+      svg.appendChild(el("line", { x1:x-70, y1:baseY+78, x2:x+70, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
+      svg.appendChild(el("line", { x1:x-70, y1:baseY+86, x2:x+70, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
+    } else {
+      // Zwischenwerte: Inputs
+      addSvgInput({ x: x-55, y: baseY+24, w:110, h:46, placeholder:"?", id:`p${i}` });
     }
   }
+
+  // --------- 4) Bögen + Sprung-Inputs (Lane-Layout für Lesbarkeit)
+  const laneTopY = [ 90, 125, 155, 175 ]; // Eingabefeld-Höhen
+  const arcTopY  = [ 150, 170, 185, 195 ]; // Bogenhöhen
+
+  const arcStroke = "#555";
+  const arcWidth = 4;
+
+  for(let i=0;i<task.parts.length;i++){
+    const x1 = xs[i];
+    const x2 = xs[i+1];
+    const mx = (x1 + x2) / 2;
+    const topY = arcTopY[Math.min(i, arcTopY.length-1)];
+
+    const d = `M ${x1} ${baseY} Q ${mx} ${topY} ${x2} ${baseY}`;
+    svg.appendChild(el("path", {
+      d, fill:"none",
+      stroke:arcStroke,
+      "stroke-width":arcWidth,
+      "stroke-linecap":"round"
+    }));
+
+    const iy = laneTopY[Math.min(i, laneTopY.length-1)];
+    addSvgInput({ x: mx-45, y: iy, w:90, h:44, placeholder:"?", id:`jump${i}` });
+  }
+}
+
 
   function checkAll(){
     // Sammle Werte:

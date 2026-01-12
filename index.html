@@ -1,71 +1,124 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Rechenstrich – Eingabe-Aufgabe</title>
-  <style>
-    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#e9eef3;}
-    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;}
-    .app{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:16px;max-width:980px;width:100%;}
-    h1{margin:0 0 8px;text-align:center;font-size:1.35rem;}
-    .subtitle{margin:0 0 14px;text-align:center;color:#475569;font-size:.95rem;line-height:1.25rem;}
-    .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center;margin-bottom:12px;}
-    select,button,input[type="number"]{font-size:1rem;padding:.55rem .7rem;border-radius:10px;border:1px solid #cbd5e1;}
-    button{cursor:pointer;border:none;background:#2563eb;color:#fff;font-weight:800;}
-    button:hover{background:#1d4ed8;}
-    button:disabled{background:#94a3b8;cursor:not-allowed;}
-    .board{
-      background:#f6f6f6;
-      border:3px solid #9aa3ad;
-      border-radius:10px;
-      padding:12px;
-      width:min(920px,100%);
-      box-sizing:border-box;
-      margin:0 auto;
-    }
-    .eq{font-size:46px;text-align:center;font-weight:500;letter-spacing:1px;margin:6px 0 6px;}
-    .line{height:3px;background:#222;opacity:.65;margin:0 auto 10px;max-width:560px;}
-    svg{width:100%;height:auto;display:block;}
-    .actions{display:flex;gap:10px;justify-content:center;align-items:center;margin-top:12px;flex-wrap:wrap;}
-    .feedback{min-height:1.4rem;text-align:center;font-weight:800;margin-top:8px;}
-    .ok{color:#15803d;}
-    .err{color:#b91c1c;}
-    .small{font-size:.9rem;color:#64748b;text-align:center;margin-top:6px;}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Rechenstrich als Aufgabe – Generator</title>
+<style>
+  :root{
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:#eef2f7;
+  }
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;}
+  .app{background:#fff;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:18px;max-width:1020px;width:100%;box-sizing:border-box;}
+  h1{margin:0 0 6px;text-align:center;font-size:1.55rem;}
+  .subtitle{margin:0 0 14px;text-align:center;color:#475569;font-size:.98rem;line-height:1.35rem;}
+  .hidden{display:none;}
+
+  /* Startmenü */
+  .menu{
+    display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:16px;
+  }
+  .bigbtn{
+    border:none;cursor:pointer;
+    background:#2563eb;color:#fff;
+    font-weight:900;font-size:1.25rem;
+    padding:16px 26px;border-radius:14px;
+    box-shadow:0 10px 20px rgba(37,99,235,.25);
+  }
+  .bigbtn:hover{background:#1d4ed8;}
+
+  /* Task header */
+  .toprow{
+    display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;
+    margin:8px 0 12px;
+  }
+  .pill{
+    border:1px solid #cbd5e1;border-radius:999px;padding:.35rem .8rem;
+    background:#f8fafc;color:#0f172a;font-weight:800;
+  }
+  .btn{
+    border:none;cursor:pointer;border-radius:12px;
+    padding:.65rem 1rem;font-weight:900;font-size:1rem;
+  }
+  .btn.primary{background:#2563eb;color:#fff;}
+  .btn.primary:hover{background:#1d4ed8;}
+  .btn.secondary{background:#e5e7eb;color:#111827;}
+  .btn.secondary:hover{background:#d1d5db;}
+  .btn:disabled{background:#94a3b8;color:#fff;cursor:not-allowed;}
+
+  .board{
+    background:#f6f6f6;
+    border:3px solid #9aa3ad;
+    border-radius:14px;
+    padding:14px;
+  }
+  .eq{
+    font-size:52px;
+    text-align:center;
+    font-weight:500;
+    letter-spacing:1px;
+    margin:8px 0 8px;
+  }
+  .line{
+    height:4px;background:#222;opacity:.65;margin:0 auto 10px;max-width:640px;border-radius:999px;
+  }
+  svg{width:100%;height:auto;display:block;}
+
+  .actions{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:12px;}
+  .feedback{min-height:1.4rem;text-align:center;font-weight:900;margin-top:10px;}
+  .ok{color:#15803d;}
+  .err{color:#b91c1c;}
+  .hint{margin-top:8px;text-align:center;color:#64748b;font-size:.92rem;}
+</style>
 </head>
 <body>
 <div class="app">
-  <h1>Rechenstrich als Aufgabe</h1>
-  <p class="subtitle">
-    Nur die <b>Startzahl</b> ist schon da. <br>
-    <b>Alle Zwischenschritte</b>, die <b>Sprünge</b> (200/30/8) und das <b>Endergebnis</b> musst du eintragen. <br>
-    Erst wenn alles ausgefüllt ist, kannst du auf <b>Überprüfen</b> klicken.
-  </p>
 
-  <div class="row">
-    <select id="mode">
-      <option value="add">Addition</option>
-      <option value="sub">Subtraktion</option>
-    </select>
-    <input id="a" type="number" value="327" min="0" />
-    <span style="font-weight:900;font-size:1.2rem;">mit</span>
-    <input id="b" type="number" value="238" min="0" />
-    <button id="newTask">Neue Aufgabe</button>
-  </div>
-
-  <div class="board">
-    <div class="eq" id="eqText">327 + 238 =</div>
-    <div class="line"></div>
-    <svg id="svg" viewBox="0 0 920 290" aria-label="Rechenstrich-Aufgabe"></svg>
-
-    <div class="actions">
-      <button id="checkBtn" disabled>Überprüfen</button>
-      <button id="resetBtn" type="button">Eingaben löschen</button>
+  <!-- START -->
+  <div id="startScreen">
+    <h1>Rechenstrich als Aufgabe</h1>
+    <p class="subtitle">
+      Nur die <b>Startzahl</b> ist schon da.<br>
+      <b>Sprünge</b> (H/Z/E), <b>Zwischenresultate</b> und das <b>Endergebnis</b> trägst du ein.<br>
+      Erst wenn alles ausgefüllt ist, kannst du auf <b>Überprüfen</b> klicken.
+    </p>
+    <div class="menu">
+      <button class="bigbtn" type="button" onclick="startWithZR(100)">ZR 100</button>
+      <button class="bigbtn" type="button" onclick="startWithZR(1000)">ZR 1000</button>
     </div>
-    <div class="feedback" id="feedback"></div>
-    <div class="small">Tipp: Zerlege die zweite Zahl in H/Z/E (z.B. 238 → 200, 30, 8).</div>
   </div>
+
+  <!-- TASK -->
+  <div id="taskScreen" class="hidden">
+    <div class="toprow">
+      <span class="pill" id="zrPill">ZR ?</span>
+      <span class="pill" id="modePill">—</span>
+      <span class="pill" id="progressPill">0 / 20</span>
+      <button class="btn secondary" type="button" onclick="newTask()">Neue Aufgabe</button>
+      <button class="btn secondary" type="button" onclick="backToMenu()">Zurück</button>
+    </div>
+
+    <div class="board">
+      <div class="eq" id="eqText">—</div>
+      <div class="line"></div>
+      <svg id="svg" viewBox="0 0 920 290" aria-label="Rechenstrich-Aufgabe"></svg>
+
+      <div class="actions">
+        <button class="btn primary" id="checkBtn" type="button" disabled>Überprüfen</button>
+        <button class="btn secondary" id="clearBtn" type="button">Eingaben löschen</button>
+      </div>
+
+      <div class="feedback" id="feedback"></div>
+      <div class="hint" id="hintText">Tipp: Zerlege die zweite Zahl in H/Z/E (z.B. 238 → 200, 30, 8).</div>
+    </div>
+  </div>
+
+  <!-- Audio (Repo: ./audio/) -->
+  <audio id="snd-correct" src="audio/correct.wav" preload="auto"></audio>
+  <audio id="snd-error"   src="audio/error.wav" preload="auto"></audio>
+  <audio id="snd-won"     src="audio/gamewon.wav" preload="auto"></audio>
+
 </div>
 
 <script>
@@ -73,56 +126,147 @@
   const eqText = document.getElementById("eqText");
   const feedback = document.getElementById("feedback");
   const checkBtn = document.getElementById("checkBtn");
-  const resetBtn = document.getElementById("resetBtn");
-  const newTaskBtn = document.getElementById("newTask");
+  const clearBtn = document.getElementById("clearBtn");
 
+  const zrPill = document.getElementById("zrPill");
+  const modePill = document.getElementById("modePill");
+  const progressPill = document.getElementById("progressPill");
+  const hintText = document.getElementById("hintText");
+
+  const sndCorrect = document.getElementById("snd-correct");
+  const sndError   = document.getElementById("snd-error");
+  const sndWon     = document.getElementById("snd-won");
+
+  let ZR = 100;
+  let solvedCorrect = 0; // zählt nur vollständig richtige Aufgaben
   let task = null;
-  let inputs = []; // alle input-Elemente in der Grafik
+  let inputs = []; // alle Inputs in der Grafik
+  let audioPrimed = false;
 
-  document.getElementById("mode").addEventListener("change", buildTaskFromControls);
-  document.getElementById("a").addEventListener("change", buildTaskFromControls);
-  document.getElementById("b").addEventListener("change", buildTaskFromControls);
-  newTaskBtn.addEventListener("click", buildTaskFromControls);
+  // ---------------- Audio helpers ----------------
+  function playSound(a){
+    if(!a) return;
+    try{
+      a.currentTime = 0;
+      const p = a.play();
+      if(p && typeof p.catch === "function") p.catch(()=>{});
+    }catch(e){}
+  }
+  function primeAudio(){
+    if(audioPrimed) return;
+    audioPrimed = true;
+    try{
+      [sndCorrect, sndError, sndWon].forEach(a=>{
+        if(!a) return;
+        a.volume = 1;
+        a.play().then(()=>{ a.pause(); a.currentTime = 0; }).catch(()=>{});
+      });
+    }catch(e){}
+  }
 
-  resetBtn.addEventListener("click", () => {
-    inputs.forEach(i => i.value = "");
+  // ---------------- Start / Navigation ----------------
+  function startWithZR(zr){
+    ZR = zr;
+    solvedCorrect = 0;
+    updateHeader();
+
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("taskScreen").classList.remove("hidden");
+
+    primeAudio();
+    newTask();
+  }
+
+  function backToMenu(){
+    document.getElementById("taskScreen").classList.add("hidden");
+    document.getElementById("startScreen").classList.remove("hidden");
     feedback.textContent = "";
     feedback.className = "feedback";
-    updateCheckEnabled();
-    if (inputs[0]) inputs[0].focus();
-  });
-
-  checkBtn.addEventListener("click", checkAll);
-
-  // Initial
-  buildTaskFromControls();
-
-  function buildTaskFromControls(){
-    const mode = document.getElementById("mode").value;   // add/sub
-    const a = Number(document.getElementById("a").value);
-    const b = Number(document.getElementById("b").value);
-    createTask({mode, a, b});
   }
 
-  function decomposeHZE(n){
-    const h = Math.floor(n/100)*100;
-    const z = Math.floor((n%100)/10)*10;
-    const e = n%10;
-    return [h,z,e].filter(x => x !== 0);
+  function updateHeader(){
+    zrPill.textContent = `ZR ${ZR}`;
+    progressPill.textContent = `${solvedCorrect} / 20`;
+    hintText.textContent = (ZR === 100)
+      ? "Tipp: Zerlege die zweite Zahl in Z/E (z.B. 47 → 40, 7)."
+      : "Tipp: Zerlege die zweite Zahl in H/Z/E (z.B. 238 → 200, 30, 8).";
   }
 
-  function clearSvg(){
+  // ---------------- Generator ----------------
+  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+  function decomposeByZR(n){
+    // ZR100: Z/E (keine Hunderter-Sprünge)
+    // ZR1000: H/Z/E
+    n = Math.abs(n);
+    if(ZR === 100){
+      const z = Math.floor(n/10)*10;
+      const e = n%10;
+      return [z,e].filter(x=>x!==0);
+    }else{
+      const h = Math.floor(n/100)*100;
+      const z = Math.floor((n%100)/10)*10;
+      const e = n%10;
+      return [h,z,e].filter(x=>x!==0);
+    }
+  }
+
+  function newTask(){
+    primeAudio();
+    feedback.textContent = "";
+    feedback.className = "feedback";
+    checkBtn.disabled = true;
+    inputs = [];
     while(svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const wantAdd = Math.random() < 0.5;
+    const mode = wantAdd ? "add" : "sub";
+
+    // Werte wählen, so dass das Resultat im Zahlenraum bleibt (0..ZR)
+    // ZR100: a,b 10..99; ZR1000: a,b 100..999
+    let aMin = (ZR === 100) ? 10 : 100;
+    let aMax = (ZR === 100) ? 99 : 999;
+
+    let a, b, res;
+    for(let tries=0; tries<500; tries++){
+      a = randInt(aMin, aMax);
+      b = randInt(aMin, aMax);
+      res = wantAdd ? (a + b) : (a - b);
+
+      if(wantAdd){
+        if(res <= ZR) break;
+      }else{
+        if(res >= 0) break;
+      }
+    }
+
+    const parts = decomposeByZR(b);
+
+    // Falls b z.B. 100 bei ZR1000 → [100], dann nur 1 Sprung, ist ok.
+    task = { mode, a, b, parts };
+
+    modePill.textContent = wantAdd ? "Addition" : "Subtraktion";
+    eqText.textContent = `${a} ${wantAdd ? "+" : "−"} ${b} =`;
+
+    updateHeader();
+    drawTaskSVG(task);
+    updateCheckEnabled();
+    focusFirstEmpty();
   }
 
+  // ---------------- SVG helpers ----------------
   function el(name, attrs = {}){
     const n = document.createElementNS("http://www.w3.org/2000/svg", name);
     for(const [k,v] of Object.entries(attrs)) n.setAttribute(k, String(v));
     return n;
   }
 
-  // HTML <foreignObject> Input in SVG
-  function addSvgInput({x,y,w=90,h=42, placeholder="", id=""}){
+  function clearSvg(){
+    while(svg.firstChild) svg.removeChild(svg.firstChild);
+  }
+
+  // foreignObject input
+  function addSvgInput({x,y,w=90,h=44, placeholder="?", id=""}){
     const fo = el("foreignObject", {x, y, width:w, height:h});
     const div = document.createElement("div");
     div.style.width = "100%";
@@ -136,22 +280,28 @@
     inp.inputMode = "numeric";
     inp.placeholder = placeholder;
     inp.id = id;
+
     inp.style.width = "100%";
     inp.style.height = "100%";
     inp.style.boxSizing = "border-box";
     inp.style.border = "2px solid #94a3b8";
-    inp.style.borderRadius = "8px";
+    inp.style.borderRadius = "10px";
     inp.style.textAlign = "center";
     inp.style.fontSize = "24px";
-    inp.style.fontWeight = "700";
+    inp.style.fontWeight = "900";
     inp.style.background = "#fff";
+    inp.style.color = "#111827";
 
-    // Events
     inp.addEventListener("input", () => {
+      primeAudio();
+      // Reset UI
       feedback.textContent = "";
       feedback.className = "feedback";
+      inp.style.borderColor = "#94a3b8";
+      inp.style.boxShadow = "none";
       updateCheckEnabled();
     });
+
     inp.addEventListener("keydown", (e) => {
       if(e.key === "Enter" && !checkBtn.disabled) checkAll();
     });
@@ -164,193 +314,205 @@
   }
 
   function updateCheckEnabled(){
-    const allFilled = inputs.every(i => i.value.trim() !== "");
+    const allFilled = inputs.length > 0 && inputs.every(i => i.value.trim() !== "");
     checkBtn.disabled = !allFilled;
   }
 
-  function createTask({mode, a, b}){
+  function focusFirstEmpty(){
+    const first = inputs.find(i => i.value.trim() === "");
+    if(first) first.focus();
+  }
+
+  // ---------------- drawTaskSVG (Ratio + volle Breite + Lanes) ----------------
+  function drawTaskSVG(task){
+    clearSvg();
     inputs = [];
-    feedback.textContent = "";
-    feedback.className = "feedback";
-    checkBtn.disabled = true;
 
-    const parts = decomposeHZE(Math.abs(b)); // [200,30,8] (ohne 0)
-    const sign = mode === "add" ? "+" : "−";
-    const result = mode === "add" ? (a + b) : (a - b);
+    const W = 920;
+    const baseY = 220;
+    const leftPad = 90;
+    const rightPad = 90;
 
-    eqText.textContent = `${a} ${sign} ${b} =`;
-
-    // Punkte: Start ist bekannt, Rest sind Eingaben
-    // Addition: a -> a+p1 -> ... -> result
-    // Sub:      a -> a-p1 -> ... -> result
-    const points = [a];
-    let cur = a;
-    for(const p of parts){
-      cur = mode === "add" ? (cur + p) : (cur - p);
-      points.push(cur);
+    // Punkte (Start + Zwischen + End)
+    const values = [task.a];
+    let cur = task.a;
+    for(const p of task.parts){
+      cur = task.mode === "add" ? (cur + p) : (cur - p);
+      values.push(cur);
     }
 
-    task = { mode, a, b, parts, points, result };
+    // X-Positionen nach Ratio: 1er=1, 10er=2, 100er=4 (volle Breite)
+    const usableW = W - leftPad - rightPad;
+    const weights = task.parts.map(p => {
+      const ap = Math.abs(p);
+      if (ap >= 100) return 4;
+      if (ap >= 10) return 2;
+      return 1;
+    });
+    const sumW = weights.reduce((a,b)=>a+b,0) || 1;
+    const unit = usableW / sumW;
 
-    drawTaskSVG(task);
-    updateCheckEnabled();
+    const xs = [leftPad];
+    for (let i = 0; i < weights.length; i++) xs.push(xs[xs.length - 1] + weights[i] * unit);
+    xs[xs.length - 1] = W - rightPad;
 
-    // Fokus aufs erste Feld
-    setTimeout(() => { if(inputs[0]) inputs[0].focus(); }, 0);
-  }
-
- function drawTaskSVG(task){
-  clearSvg();
-  inputs = []; // wichtig: Inputs-Liste für Check/Enable
-
-  const W = 920;
-  const baseY = 220;
-  const leftPad = 90;
-  const rightPad = 90;
-
-  // Punkte (Start + Zwischen + End)
-  const values = [task.a];
-  let cur = task.a;
-  for(const p of task.parts){
-    cur = task.mode === "add" ? (cur + p) : (cur - p);
-    values.push(cur);
-  }
-
-  // --------- 1) X-Positionen nach Ratio (1er:1, 10er:2, 100er:4) und volle Breite
-  const usableW = W - leftPad - rightPad;
-
-  // Gewichte pro Sprung aus task.parts ableiten
-  // 1..9 -> 1, 10..99 -> 2, >=100 -> 4
-  const weights = task.parts.map(p => {
-    const ap = Math.abs(p);
-    if (ap >= 100) return 4;
-    if (ap >= 10) return 2;
-    return 1;
-  });
-
-  const sumW = weights.reduce((a,b)=>a+b,0) || 1;
-  const unit = usableW / sumW;
-
-  // Tick-Positionen kumulativ aufbauen
-  const xs = [leftPad];
-  for (let i = 0; i < weights.length; i++) {
-    xs.push(xs[xs.length - 1] + weights[i] * unit);
-  }
-  // Rundungsfehler korrigieren: letzter Tick exakt am rechten Rand
-  xs[xs.length - 1] = W - rightPad;
-
-  // --------- 2) Grundlinie
-  svg.appendChild(el("line", {
-    x1:leftPad, y1:baseY, x2:W-rightPad, y2:baseY,
-    stroke:"#222", "stroke-width":6, "stroke-linecap":"round", opacity:0.75
-  }));
-
-  // --------- 3) Ticks + Zahlen/Inputs unten (Start fix, Rest Inputs)
-  for(let i=0;i<values.length;i++){
-    const x = xs[i];
-
+    // Grundlinie
     svg.appendChild(el("line", {
-      x1:x, y1:baseY-16, x2:x, y2:baseY+16,
-      stroke:"#222", "stroke-width":6, "stroke-linecap":"round", opacity:0.85
+      x1:leftPad, y1:baseY, x2:W-rightPad, y2:baseY,
+      stroke:"#222", "stroke-width":6, "stroke-linecap":"round", opacity:0.75
     }));
 
-    if(i === 0){
-      const t = el("text", {
-        x, y: baseY + 56,
-        "text-anchor":"middle",
-        "font-size":44,
-        "font-weight":500,
-        fill:"#111"
-      });
-      t.textContent = String(values[i]);
-      svg.appendChild(t);
-    } else if(i === values.length - 1){
-      // Endergebnis: Input + Doppelunterstrich
-      addSvgInput({ x: x-55, y: baseY+24, w:110, h:46, placeholder:"?", id:`p${i}` });
+    // Ticks + Startzahl + Inputs
+    for(let i=0;i<values.length;i++){
+      const x = xs[i];
 
-      svg.appendChild(el("line", { x1:x-70, y1:baseY+78, x2:x+70, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
-      svg.appendChild(el("line", { x1:x-70, y1:baseY+86, x2:x+70, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
-    } else {
-      // Zwischenwerte: Inputs
-      addSvgInput({ x: x-55, y: baseY+24, w:110, h:46, placeholder:"?", id:`p${i}` });
+      svg.appendChild(el("line", {
+        x1:x, y1:baseY-16, x2:x, y2:baseY+16,
+        stroke:"#222", "stroke-width":6, "stroke-linecap":"round", opacity:0.85
+      }));
+
+      if(i === 0){
+        const t = el("text", {
+          x, y: baseY + 56,
+          "text-anchor":"middle",
+          "font-size":44,
+          "font-weight":600,
+          fill:"#111"
+        });
+        t.textContent = String(values[i]);
+        svg.appendChild(t);
+      } else if(i === values.length - 1){
+        addSvgInput({ x: x-58, y: baseY+24, w:116, h:46, placeholder:"?", id:`p${i}` });
+
+        // Doppelunterstrich (Endergebnis bereits "doppelt unterstrichen")
+        svg.appendChild(el("line", { x1:x-78, y1:baseY+78, x2:x+78, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
+        svg.appendChild(el("line", { x1:x-78, y1:baseY+86, x2:x+78, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
+      } else {
+        addSvgInput({ x: x-58, y: baseY+24, w:116, h:46, placeholder:"?", id:`p${i}` });
+      }
     }
-  }
 
-  // --------- 4) Bögen + Sprung-Inputs (Lane-Layout für Lesbarkeit)
-  const laneTopY = [ 90, 125, 155, 175 ]; // Eingabefeld-Höhen
-  const arcTopY  = [ 150, 170, 185, 195 ]; // Bogenhöhen
+    // Bögen + Sprung-Inputs (Lanes)
+    const laneTopY = [ 90, 125, 155, 175 ];
+    const arcTopY  = [ 150, 170, 185, 195 ];
 
-  const arcStroke = "#555";
-  const arcWidth = 4;
+    const arcStroke = "#555";
+    const arcWidth = 4;
 
-  for(let i=0;i<task.parts.length;i++){
-    const x1 = xs[i];
-    const x2 = xs[i+1];
-    const mx = (x1 + x2) / 2;
-    const topY = arcTopY[Math.min(i, arcTopY.length-1)];
-
-    const d = `M ${x1} ${baseY} Q ${mx} ${topY} ${x2} ${baseY}`;
-    svg.appendChild(el("path", {
-      d, fill:"none",
-      stroke:arcStroke,
-      "stroke-width":arcWidth,
-      "stroke-linecap":"round"
-    }));
-
-    const iy = laneTopY[Math.min(i, laneTopY.length-1)];
-    addSvgInput({ x: mx-45, y: iy, w:90, h:44, placeholder:"?", id:`jump${i}` });
-  }
-}
-
-
-  function checkAll(){
-    // Sammle Werte:
-    // - jump0.. : müssen den parts entsprechen
-    // - p1..pn : müssen den Zwischenpunkten entsprechen (inkl. Endresultat)
-    const errs = [];
-
-    // Jumps prüfen
     for(let i=0;i<task.parts.length;i++){
-      const inp = document.getElementById(`jump${i}`);
-      const given = Number(inp.value);
-      if(given !== task.parts[i]) errs.push(inp);
+      const x1 = xs[i];
+      const x2 = xs[i+1];
+      const mx = (x1 + x2) / 2;
+
+      // didaktisch: fixe Höhen, Lesbarkeit > Maßstab
+      const topY = arcTopY[Math.min(i, arcTopY.length-1)];
+      const d = `M ${x1} ${baseY} Q ${mx} ${topY} ${x2} ${baseY}`;
+      svg.appendChild(el("path", {
+        d, fill:"none", stroke:arcStroke, "stroke-width":arcWidth, "stroke-linecap":"round"
+      }));
+
+      const iy = laneTopY[Math.min(i, laneTopY.length-1)];
+      addSvgInput({ x: mx-48, y: iy, w:96, h:44, placeholder:"?", id:`jump${i}` });
     }
 
-    // Punkte prüfen (p1..)
-    for(let i=1;i<task.points.length;i++){
-      const inp = document.getElementById(`p${i}`);
-      const given = Number(inp.value);
-      if(given !== task.points[i]) errs.push(inp);
+    // Buttons
+    checkBtn.onclick = checkAll;
+    clearBtn.onclick = () => {
+      primeAudio();
+      inputs.forEach(i => {
+        i.value = "";
+        i.style.borderColor = "#94a3b8";
+        i.style.boxShadow = "none";
+      });
+      feedback.textContent = "";
+      feedback.className = "feedback";
+      updateCheckEnabled();
+      focusFirstEmpty();
+    };
+  }
+
+  // ---------------- Check ----------------
+  function checkAll(){
+    primeAudio();
+
+    // Sollwerte berechnen
+    const parts = task.parts.slice(); // Sprünge
+    const values = [task.a];
+    let cur = task.a;
+    for(const p of parts){
+      cur = (task.mode === "add") ? (cur + p) : (cur - p);
+      values.push(cur);
     }
 
-    // UI markieren
+    let wrong = [];
+
+    // Reset borders
     inputs.forEach(inp => {
       inp.style.borderColor = "#94a3b8";
       inp.style.boxShadow = "none";
     });
 
-    if(errs.length === 0){
+    // Sprünge prüfen (jump0..)
+    for(let i=0;i<parts.length;i++){
+      const inp = document.getElementById(`jump${i}`);
+      const given = Number(inp.value);
+      if(!Number.isFinite(given) || given !== parts[i]) wrong.push(inp);
+    }
+
+    // Zwischenwerte + Ergebnis prüfen (p1..)
+    for(let i=1;i<values.length;i++){
+      const inp = document.getElementById(`p${i}`);
+      const given = Number(inp.value);
+      if(!Number.isFinite(given) || given !== values[i]) wrong.push(inp);
+    }
+
+    if(wrong.length === 0){
+      playSound(sndCorrect);
       feedback.textContent = "Alles richtig! ✅";
       feedback.className = "feedback ok";
-      // optional: LearningView AppSolved
-      try{
-        if(window.parent && window.parent !== window){
-          window.parent.postMessage("AppSolved","*");
-        }
-      }catch(e){}
+
+      solvedCorrect++;
+      updateHeader();
+
+      if(solvedCorrect >= 20){
+        // fertig
+        setTimeout(() => playSound(sndWon), 200);
+
+        // LearningView
+        try{
+          if(window.parent && window.parent !== window){
+            window.parent.postMessage("AppSolved","*");
+          }
+        }catch(e){}
+
+        // UI sperren
+        checkBtn.disabled = true;
+        inputs.forEach(i => i.disabled = true);
+
+        setTimeout(() => {
+          feedback.textContent = "20 Aufgaben richtig gelöst! 🎉";
+          feedback.className = "feedback ok";
+        }, 200);
+
+      }else{
+        // nächste Aufgabe
+        setTimeout(newTask, 650);
+      }
+
     }else{
-      feedback.textContent = "Noch nicht ganz. Prüfe die rot markierten Felder.";
+      playSound(sndError);
+      feedback.textContent = "Noch nicht ganz – rote Felder korrigieren und erneut prüfen.";
       feedback.className = "feedback err";
-      errs.forEach(inp => {
+
+      wrong.forEach(inp => {
         inp.style.borderColor = "#b91c1c";
         inp.style.boxShadow = "0 0 0 3px rgba(185,28,28,.18)";
       });
+
       // Fokus erstes falsches Feld
-      errs[0].focus();
+      wrong[0].focus();
     }
   }
-
-  function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
 </script>
 </body>
 </html>

@@ -133,7 +133,7 @@ const sndError   = document.getElementById("snd-error");
 const sndWon     = document.getElementById("snd-won");
 
 let ZR = 100;
-let solvedCorrect = 0;         // zählt nur vollständig richtig gelöste Aufgaben
+let solvedCorrect = 0;         // zählt nur vollständig richtig gelöste Aufgaben (max 20)
 let task = null;               // {mode,a,b,partsUnsigned,partsSigned,values}
 let inputs = [];               // alle Inputs (Sprünge + Resultate)
 let audioPrimed = false;
@@ -204,9 +204,10 @@ function decomposeByZR(unsignedB){
 function updateHeader(){
   zrPill.textContent = `ZR ${ZR}`;
   progressPill.textContent = `${solvedCorrect} / 20`;
+  modePill.textContent = task ? (task.mode === "add" ? "Addition" : "Subtraktion") : "—";
   hintText.textContent = (ZR === 100)
-    ? "Tipp: Zerlege die zweite Zahl in Z/E (z.B. 47 → 40, 7). Sprünge mit Vorzeichen eintragen: +40, +7 oder -40, -7."
-    : "Tipp: Zerlege die zweite Zahl in H/Z/E (z.B. 238 → 200, 30, 8). Sprünge mit Vorzeichen eintragen: +200, +30, +8 oder -200, -30, -8.";
+    ? "Tipp: Zerlege die zweite Zahl in Z/E (z.B. 47 → 40, 7). Sprünge mit Vorzeichen: +40, +7 oder -40, -7."
+    : "Tipp: Zerlege die zweite Zahl in H/Z/E (z.B. 238 → 200, 30, 8). Sprünge mit Vorzeichen: +200, +30, +8 oder -200, -30, -8.";
 }
 
 function newTask(){
@@ -216,7 +217,6 @@ function newTask(){
   inputs = [];
   clearSvg();
 
-  // zufällig add / sub
   const mode = (Math.random() < 0.5) ? "add" : "sub";
 
   // Werte so wählen, dass Resultat im Zahlenraum bleibt
@@ -224,10 +224,9 @@ function newTask(){
   const aMax = (ZR === 100) ? 99 : 999;
 
   let a = 0, b = 0, res = 0;
-  for(let tries=0; tries<600; tries++){
+  for(let tries=0; tries<700; tries++){
     a = randInt(aMin, aMax);
     b = randInt(aMin, aMax);
-
     res = (mode === "add") ? (a + b) : (a - b);
 
     if (mode === "add") {
@@ -237,10 +236,9 @@ function newTask(){
     }
   }
 
-  const partsUnsigned = decomposeByZR(b);                   // z.B. [200,30,8] oder [40,7]
+  const partsUnsigned = decomposeByZR(b);
   const partsSigned = partsUnsigned.map(p => mode === "add" ? +p : -p);
 
-  // Zwischenwerte
   const values = [a];
   let cur = a;
   for(const sp of partsSigned){
@@ -250,7 +248,6 @@ function newTask(){
 
   task = { mode, a, b, partsUnsigned, partsSigned, values };
 
-  modePill.textContent = (mode === "add") ? "Addition" : "Subtraktion";
   eqText.textContent = `${a} ${(mode==="add")?"+":"−"} ${b} =`;
 
   drawTaskSVG(task);
@@ -324,7 +321,6 @@ function addSvgInput({x,y,w=90,h=44, placeholder="?", id="", signed=false, expec
     if(!signed) return;
     const raw = (inp.value || "").trim();
     if(raw === "") return;
-
     if(/^[+-]/.test(raw)) return;
     if(/^\d+$/.test(raw)){
       inp.value = (inp.dataset.expectedSign || "+") + raw;
@@ -352,14 +348,7 @@ function focusFirstEmpty(){
   if(f) f.focus();
 }
 
-/* ======================= drawTaskSVG ======================= */
-/*
-  Anforderungen:
-  - Zwischenresultat-Kästchen dürfen NIE überlappen
-  - Sprung-Kästchen müssen Vorzeichen enthalten (+/-) -> text inputs
-  - X-Verteilung nach Ratio: 1er=1, 10er=2, 100er=4; nutzt volle Breite
-  - Lesbarkeit hat Vorrang vor Maßstab
-*/
+/* ======================= drawTaskSVG (NO OVERLAP for result boxes) ======================= */
 function drawTaskSVG(task){
   clearSvg();
   inputs = [];
@@ -369,7 +358,7 @@ function drawTaskSVG(task){
   const leftPad = 90;
   const rightPad = 90;
 
-  // X-Positionen nach Ratio (1/2/4) über volle Breite
+  // X-Positionen nach Ratio (1er=1, 10er=2, 100er=4), nutzt volle Breite
   const usableW = W - leftPad - rightPad;
   const weights = task.partsUnsigned.map(p => {
     const ap = Math.abs(p);
@@ -399,7 +388,7 @@ function drawTaskSVG(task){
     }));
   }
 
-  // Startzahl als Text
+  // Startzahl
   {
     const x = xs[0];
     const t = el("text", {
@@ -413,37 +402,73 @@ function drawTaskSVG(task){
     svg.appendChild(t);
   }
 
-  // Zwischenresultate: Inputs ohne Überlappung (greedy rechts verschieben)
+  // ---------- Zwischenresultate/Endresultat: Constraint-Layout mit Mindestabstand + Rand
   const boxW = 116;
   const boxH = 46;
   const yBox = baseY + 24;
-  const margin = 12;
+  const gap = 14; // MINIMALABSTAND
+  const minLeft = leftPad - 10;
+  const maxLeft = (W - rightPad) - boxW + 10;
 
-  let lastRight = -Infinity;
+  const m = task.values.length - 1; // p1..pN
+  const lefts = new Array(m);
 
-  for(let i=1;i<task.values.length;i++){
-    const xTick = xs[i];
-    let left = xTick - boxW/2;
+  // Startpositionen zentriert am Tick
+  for (let i = 0; i < m; i++) {
+    const tickX = xs[i + 1];
+    lefts[i] = tickX - boxW / 2;
+  }
 
-    if (left < lastRight + margin) left = lastRight + margin;
+  function clampAll(arr){
+    for (let i = 0; i < arr.length; i++) {
+      arr[i] = Math.max(minLeft, Math.min(maxLeft, arr[i]));
+    }
+  }
+  function enforceForward(arr){
+    for (let i = 1; i < arr.length; i++) {
+      const min = arr[i - 1] + boxW + gap;
+      if (arr[i] < min) arr[i] = min;
+    }
+  }
+  function enforceBackward(arr){
+    for (let i = arr.length - 2; i >= 0; i--) {
+      const max = arr[i + 1] - (boxW + gap);
+      if (arr[i] > max) arr[i] = max;
+    }
+  }
 
-    const minLeft = leftPad - 10;
-    const maxLeft = (W - rightPad) - boxW + 10;
-    left = Math.max(minLeft, Math.min(maxLeft, left));
+  // Iterative Entspannung
+  for (let it = 0; it < 3; it++) {
+    clampAll(lefts);
+    enforceForward(lefts);
 
-    addSvgInput({ x:left, y:yBox, w:boxW, h:boxH, placeholder:"?", id:`p${i}`, signed:false });
+    const overflow = lefts[lefts.length - 1] - maxLeft;
+    if (overflow > 0) {
+      for (let i = 0; i < lefts.length; i++) lefts[i] -= overflow;
+    }
 
-    lastRight = left + boxW;
+    clampAll(lefts);
+    enforceBackward(lefts);
+    clampAll(lefts);
+    enforceForward(lefts);
+  }
+
+  // Zeichnen
+  for (let i = 0; i < m; i++) {
+    const idx = i + 1;
+    const left = lefts[i];
+
+    addSvgInput({ x:left, y:yBox, w:boxW, h:boxH, placeholder:"?", id:`p${idx}`, signed:false });
 
     // Doppelunterstrich beim Endergebnis
-    if(i === task.values.length - 1){
+    if(idx === task.values.length - 1){
       const cx = left + boxW/2;
       svg.appendChild(el("line", { x1:cx-78, y1:baseY+78, x2:cx+78, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
       svg.appendChild(el("line", { x1:cx-78, y1:baseY+86, x2:cx+78, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
     }
   }
 
-  // Bögen + Sprung-Inputs in Lanes (Vorzeichen-Pflicht)
+  // ---------- Bögen + Sprunginputs (Vorzeichen Pflicht)
   const laneTopY = [ 90, 125, 155, 175 ];
   const arcTopY  = [ 150, 170, 185, 195 ];
   const arcStroke = "#555";
@@ -498,10 +523,10 @@ function resetMark(inp){
   inp.style.boxShadow = "none";
 }
 
+checkBtn.addEventListener("click", () => checkAll());
+
 function checkAll(){
   primeAudio();
-
-  // Reset marks
   inputs.forEach(resetMark);
 
   const wrong = [];
@@ -513,7 +538,7 @@ function checkAll(){
     if(!parsed.ok || parsed.value !== task.partsSigned[i]) wrong.push(inp);
   }
 
-  // Zwischenresultate prüfen (inkl. Endergebnis)
+  // Zwischenresultate prüfen
   for(let i=1;i<task.values.length;i++){
     const inp = document.getElementById(`p${i}`);
     const given = Number(inp.value);
@@ -528,7 +553,6 @@ function checkAll(){
     solvedCorrect++;
     updateHeader();
 
-    // 20 richtig -> gamewon + LearningView + sperren
     if(solvedCorrect >= 20){
       setTimeout(()=>playSound(sndWon), 200);
 
@@ -538,7 +562,6 @@ function checkAll(){
         }
       }catch(e){}
 
-      // sperren
       inputs.forEach(i => i.disabled = true);
       checkBtn.disabled = true;
 
@@ -550,21 +573,16 @@ function checkAll(){
       return;
     }
 
-    // nächste Aufgabe
     setTimeout(newTask, 650);
 
   } else {
     playSound(sndError);
     feedback.textContent = "Noch nicht ganz – rote Felder korrigieren und erneut prüfen.";
     feedback.className = "feedback err";
-
     wrong.forEach(markWrong);
     wrong[0].focus();
   }
 }
-
-/* ======================= Init ======================= */
-// nichts: Startscreen wartet auf Auswahl
 </script>
 </body>
 </html>

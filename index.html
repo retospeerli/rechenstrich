@@ -5,10 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Rechenstrich – Aufgaben (ZR 100 / 1000)</title>
 <style>
-  :root{
-    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    background:#eef2f7;
-  }
+  :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#eef2f7;}
   body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;}
   .app{background:#fff;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:18px;max-width:1020px;width:100%;box-sizing:border-box;}
   h1{margin:0 0 6px;text-align:center;font-size:1.55rem;}
@@ -16,39 +13,19 @@
   .hidden{display:none;}
 
   .menu{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:16px;}
-  .bigbtn{
-    border:none;cursor:pointer;
-    background:#2563eb;color:#fff;
-    font-weight:900;font-size:1.25rem;
-    padding:16px 26px;border-radius:14px;
-    box-shadow:0 10px 20px rgba(37,99,235,.25);
-  }
+  .bigbtn{border:none;cursor:pointer;background:#2563eb;color:#fff;font-weight:900;font-size:1.25rem;padding:16px 26px;border-radius:14px;box-shadow:0 10px 20px rgba(37,99,235,.25);}
   .bigbtn:hover{background:#1d4ed8;}
 
-  .toprow{
-    display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;
-    margin:8px 0 12px;
-  }
-  .pill{
-    border:1px solid #cbd5e1;border-radius:999px;padding:.35rem .8rem;
-    background:#f8fafc;color:#0f172a;font-weight:900;
-  }
-  .btn{
-    border:none;cursor:pointer;border-radius:12px;
-    padding:.65rem 1rem;font-weight:900;font-size:1rem;
-  }
+  .toprow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;margin:8px 0 12px;}
+  .pill{border:1px solid #cbd5e1;border-radius:999px;padding:.35rem .8rem;background:#f8fafc;color:#0f172a;font-weight:900;}
+  .btn{border:none;cursor:pointer;border-radius:12px;padding:.65rem 1rem;font-weight:900;font-size:1rem;}
   .btn.primary{background:#2563eb;color:#fff;}
   .btn.primary:hover{background:#1d4ed8;}
   .btn.secondary{background:#e5e7eb;color:#111827;}
   .btn.secondary:hover{background:#d1d5db;}
   .btn:disabled{background:#94a3b8;color:#fff;cursor:not-allowed;}
 
-  .board{
-    background:#f6f6f6;
-    border:3px solid #9aa3ad;
-    border-radius:14px;
-    padding:14px;
-  }
+  .board{background:#f6f6f6;border:3px solid #9aa3ad;border-radius:14px;padding:14px;}
   .eq{font-size:52px;text-align:center;font-weight:500;letter-spacing:1px;margin:8px 0 8px;}
   .line{height:4px;background:#222;opacity:.65;margin:0 auto 10px;max-width:640px;border-radius:999px;}
   svg{width:100%;height:auto;display:block;}
@@ -63,7 +40,6 @@
 <body>
 <div class="app">
 
-  <!-- START -->
   <div id="startScreen">
     <h1>Rechenstrich als Aufgabe</h1>
     <p class="subtitle">
@@ -77,7 +53,6 @@
     </div>
   </div>
 
-  <!-- TASK -->
   <div id="taskScreen" class="hidden">
     <div class="toprow">
       <span class="pill" id="zrPill">ZR ?</span>
@@ -90,9 +65,7 @@
     <div class="board">
       <div class="eq" id="eqText">—</div>
       <div class="line"></div>
-
-      <!-- viewBox-Höhe wird dynamisch angepasst, wenn 2 Zeilen nötig sind -->
-      <svg id="svg" viewBox="0 0 920 290" aria-label="Rechenstrich-Aufgabe"></svg>
+      <svg id="svg" viewBox="0 0 920 300" aria-label="Rechenstrich-Aufgabe"></svg>
 
       <div class="actions">
         <button class="btn primary" id="checkBtn" type="button" disabled>Überprüfen</button>
@@ -104,7 +77,6 @@
     </div>
   </div>
 
-  <!-- Audio (Repo: ./audio/) -->
   <audio id="snd-correct" src="audio/correct.wav" preload="auto"></audio>
   <audio id="snd-error"   src="audio/error.wav" preload="auto"></audio>
   <audio id="snd-won"     src="audio/gamewon.wav" preload="auto"></audio>
@@ -135,9 +107,9 @@ const sndError   = document.getElementById("snd-error");
 const sndWon     = document.getElementById("snd-won");
 
 let ZR = 100;
-let solvedCorrect = 0;         // 0..20 (nur vollständig richtige Aufgaben)
-let task = null;               // {mode,a,b,partsUnsigned,partsSigned,values}
-let inputs = [];               // alle Inputs (Sprünge + Resultate)
+let solvedCorrect = 0;
+let task = null;
+let inputs = [];
 let audioPrimed = false;
 
 /* ======================= Audio ======================= */
@@ -189,7 +161,6 @@ function backToMenu(){
 function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 
 function decomposeByZR(unsignedB){
-  // ZR100: Z/E; ZR1000: H/Z/E
   const n = Math.abs(unsignedB);
   if (ZR === 100){
     const z = Math.floor(n/10)*10;
@@ -221,7 +192,6 @@ function newTask(){
 
   const mode = (Math.random() < 0.5) ? "add" : "sub";
 
-  // Zahlen wählen: Ergebnis muss im Zahlenraum bleiben
   const aMin = (ZR === 100) ? 10 : 100;
   const aMax = (ZR === 100) ? 99 : 999;
 
@@ -230,11 +200,8 @@ function newTask(){
     a = randInt(aMin, aMax);
     b = randInt(aMin, aMax);
     res = (mode === "add") ? (a + b) : (a - b);
-    if (mode === "add") {
-      if (res <= ZR) break;
-    } else {
-      if (res >= 0) break;
-    }
+    if (mode === "add") { if (res <= ZR) break; }
+    else { if (res >= 0) break; }
   }
 
   const partsUnsigned = decomposeByZR(b);
@@ -242,10 +209,7 @@ function newTask(){
 
   const values = [a];
   let cur = a;
-  for(const sp of partsSigned){
-    cur += sp;
-    values.push(cur);
-  }
+  for(const sp of partsSigned){ cur += sp; values.push(cur); }
 
   task = { mode, a, b, partsUnsigned, partsSigned, values };
 
@@ -317,7 +281,6 @@ function addSvgInput({x,y,w=90,h=44, placeholder="?", id="", signed=false, expec
     updateCheckEnabled();
   });
 
-  // Vorzeichen automatisch ergänzen bei Sprüngen
   inp.addEventListener("blur", () => {
     if(!signed) return;
     const raw = (inp.value || "").trim();
@@ -349,20 +312,119 @@ function focusFirstEmpty(){
   if(f) f.focus();
 }
 
-/* ======================= drawTaskSVG (NO OVERLAP GUARANTEE) ======================= */
+/* ======================= Layout: "zentriert so gut wie möglich" ohne Überlappung ======================= */
+/*
+  Wir wollen left[i] nahe desiredLeft[i] (mittig unter Tick),
+  unter Zwang: left[i+1] - left[i] >= D, und bounds.
+  Trick: y[i] = left[i] - i*D => y nondecreasing.
+  Wir projizieren desiredY auf monotone Folge (PAV), mit bounds.
+*/
+function pavNondecreasing(values){
+  // isotonic regression (PAV) for nondecreasing sequence
+  const n = values.length;
+  const v = values.slice();
+  const w = new Array(n).fill(1);
+
+  // blocks: start, end, avg, weight
+  let starts = [];
+  let avgs = [];
+  let weights = [];
+
+  for(let i=0;i<n;i++){
+    starts.push(i);
+    avgs.push(v[i]);
+    weights.push(1);
+
+    // merge while decreasing
+    while(avgs.length >= 2){
+      const k = avgs.length - 1;
+      if(avgs[k-1] <= avgs[k]) break;
+
+      const w1 = weights[k-1], w2 = weights[k];
+      const a1 = avgs[k-1], a2 = avgs[k];
+      const mergedAvg = (a1*w1 + a2*w2) / (w1+w2);
+
+      avgs[k-1] = mergedAvg;
+      weights[k-1] = w1+w2;
+      avgs.pop(); weights.pop(); starts.pop();
+    }
+  }
+
+  // expand blocks
+  const out = new Array(n);
+  let idx = 0;
+  for(let b=0;b<avgs.length;b++){
+    const start = starts[b];
+    const end = (b === avgs.length-1) ? (n-1) : (starts[b+1]-1);
+    for(let i=start;i<=end;i++) out[i] = avgs[b];
+    idx = end+1;
+  }
+  return out;
+}
+
+function layoutResultBoxesCentered(desiredLefts, minLeft, maxLeft, D){
+  const m = desiredLefts.length;
+  if(m === 0) return [];
+
+  // transform
+  const desiredY = new Array(m);
+  const yMin = new Array(m);
+  const yMax = new Array(m);
+
+  for(let i=0;i<m;i++){
+    desiredY[i] = desiredLefts[i] - i*D;
+    yMin[i] = minLeft - i*D;
+    yMax[i] = maxLeft - i*D;
+  }
+
+  // iterative bounded projection: clamp -> PAV -> clamp -> PAV ...
+  let y = desiredY.slice();
+  for(let it=0; it<6; it++){
+    // clamp
+    for(let i=0;i<m;i++){
+      if(y[i] < yMin[i]) y[i] = yMin[i];
+      if(y[i] > yMax[i]) y[i] = yMax[i];
+    }
+    // monotone projection
+    y = pavNondecreasing(y);
+  }
+
+  // reconstruct lefts
+  const lefts = new Array(m);
+  for(let i=0;i<m;i++){
+    let left = y[i] + i*D;
+    // final clamp safety
+    left = Math.max(minLeft, Math.min(maxLeft, left));
+    lefts[i] = left;
+  }
+
+  // final hard repair (just in case floating)
+  for(let i=1;i<m;i++){
+    const minAllowed = lefts[i-1] + D;
+    if(lefts[i] < minAllowed) lefts[i] = minAllowed;
+  }
+  const overflow = lefts[m-1] - maxLeft;
+  if(overflow > 0){
+    for(let i=0;i<m;i++) lefts[i] -= overflow;
+  }
+  for(let i=0;i<m;i++){
+    lefts[i] = Math.max(minLeft, Math.min(maxLeft, lefts[i]));
+  }
+
+  return lefts;
+}
+
+/* ======================= drawTaskSVG ======================= */
 function drawTaskSVG(task){
   clearSvg();
   inputs = [];
-
-  // Standardhöhe; wird ggf. auf 2 Zeilen erhöht
-  let vbH = 290;
 
   const W = 920;
   const baseY = 220;
   const leftPad = 90;
   const rightPad = 90;
 
-  // X-Positionen nach Ratio (1/2/4), volle Breite
+  // X-Positionen nach Ratio (1/2/4) über volle Breite
   const usableW = W - leftPad - rightPad;
   const weights = task.partsUnsigned.map(p => {
     const ap = Math.abs(p);
@@ -406,143 +468,36 @@ function drawTaskSVG(task){
     svg.appendChild(t);
   }
 
-  // ---------- Zwischenresultate/Endresultat: harte Constraints + 2-Zeilen-Failsafe
-  const boxW = 116;
+  // ---------- Zwischenresultate: mittig (best possible) + NIE überlappend
+  const boxW = 132;            // etwas breiter -> bessere Lesbarkeit, aber Layout hält Abstand ein
   const boxH = 46;
+  const yBox = baseY + 24;
 
-  const yRow1 = baseY + 24;
-  const yRow2 = baseY + 24 + 56;
+  const gap = 16;              // MINIMALABSTAND zwischen Kästchen
+  const D = boxW + gap;
 
-  const gap = 16; // MINIMALABSTAND (sicher)
   const minLeft = leftPad - 10;
   const maxLeft = (W - rightPad) - boxW + 10;
 
   const m = task.values.length - 1; // p1..pN
-  const desired = new Array(m);
-
-  for (let i = 0; i < m; i++){
-    desired[i] = xs[i + 1] - boxW / 2;
+  const desiredLefts = [];
+  for(let i=0;i<m;i++){
+    const tickX = xs[i+1];
+    desiredLefts.push(tickX - boxW/2);
   }
 
-  function hasOverlap(lefts){
-    for(let i=1;i<lefts.length;i++){
-      if(lefts[i] < lefts[i-1] + boxW + gap) return true;
-    }
-    return false;
-  }
+  const lefts = layoutResultBoxesCentered(desiredLefts, minLeft, maxLeft, D);
 
-  function solveRow(desiredLefts){
-    const lefts = desiredLefts.slice();
+  for(let i=0;i<m;i++){
+    const idx = i + 1;
+    const left = lefts[i];
 
-    // clamp
-    for(let i=0;i<lefts.length;i++){
-      lefts[i] = Math.max(minLeft, Math.min(maxLeft, lefts[i]));
-    }
+    addSvgInput({ x:left, y:yBox, w:boxW, h:boxH, placeholder:"?", id:`p${idx}`, signed:false });
 
-    // right-to-left: hard max distance
-    lefts[lefts.length-1] = Math.max(minLeft, Math.min(maxLeft, lefts[lefts.length-1]));
-    for(let i=lefts.length-2;i>=0;i--){
-      const maxAllowed = lefts[i+1] - (boxW + gap);
-      lefts[i] = Math.min(lefts[i], maxAllowed);
-      lefts[i] = Math.max(minLeft, lefts[i]);
-    }
-
-    // shift right if left too small
-    const under = minLeft - lefts[0];
-    if(under > 0){
-      for(let i=0;i<lefts.length;i++) lefts[i] += under;
-    }
-
-    // left-to-right: hard min distance
-    for(let i=1;i<lefts.length;i++){
-      const minAllowed = lefts[i-1] + boxW + gap;
-      if(lefts[i] < minAllowed) lefts[i] = minAllowed;
-    }
-
-    // shift left if right overflow
-    const overflow = lefts[lefts.length-1] - maxLeft;
-    if(overflow > 0){
-      for(let i=0;i<lefts.length;i++) lefts[i] -= overflow;
-    }
-
-    // final clamp + repair
-    for(let i=0;i<lefts.length;i++){
-      lefts[i] = Math.max(minLeft, Math.min(maxLeft, lefts[i]));
-    }
-    for(let i=1;i<lefts.length;i++){
-      const minAllowed = lefts[i-1] + boxW + gap;
-      if(lefts[i] < minAllowed) lefts[i] = minAllowed;
-    }
-
-    return lefts;
-  }
-
-  // 1 Zeile versuchen
-  let leftsRow1 = solveRow(desired);
-  let useTwoRows = hasOverlap(leftsRow1);
-
-  let splitIndex = m;
-  let row1 = [];
-  let row2 = [];
-  let lefts2a = null;
-  let lefts2b = null;
-
-  if(useTwoRows){
-    // zweite Reihe nimmt standardmässig die letzten 2 Kästchen
-    splitIndex = Math.max(1, m - 2);
-    row1 = desired.slice(0, splitIndex);
-    row2 = desired.slice(splitIndex);
-
-    lefts2a = solveRow(row1);
-    lefts2b = solveRow(row2);
-
-    // falls immer noch problematisch (theoretisch), noch aggressiver splitten
-    if(hasOverlap(lefts2a) || hasOverlap(lefts2b)){
-      splitIndex = Math.max(1, m - 1);
-      row1 = desired.slice(0, splitIndex);
-      row2 = desired.slice(splitIndex);
-      lefts2a = solveRow(row1);
-      lefts2b = solveRow(row2);
-    }
-
-    vbH = 350; // mehr Höhe, damit Zeile 2 nicht abgeschnitten wird
-  }
-
-  // viewBox anpassen
-  svg.setAttribute("viewBox", `0 0 920 ${vbH}`);
-
-  // Zeichnen
-  if(!useTwoRows){
-    for (let i = 0; i < m; i++){
-      const idx = i + 1;
-      const left = leftsRow1[i];
-
-      addSvgInput({ x:left, y:yRow1, w:boxW, h:boxH, placeholder:"?", id:`p${idx}`, signed:false });
-
-      if(idx === task.values.length - 1){
-        const cx = left + boxW/2;
-        svg.appendChild(el("line", { x1:cx-78, y1:baseY+78, x2:cx+78, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
-        svg.appendChild(el("line", { x1:cx-78, y1:baseY+86, x2:cx+78, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
-      }
-    }
-  } else {
-    // Reihe 1
-    for(let i=0;i<row1.length;i++){
-      const idx = i + 1;
-      const left = lefts2a[i];
-      addSvgInput({ x:left, y:yRow1, w:boxW, h:boxH, placeholder:"?", id:`p${idx}`, signed:false });
-    }
-    // Reihe 2
-    for(let j=0;j<row2.length;j++){
-      const idx = splitIndex + j + 1;
-      const left = lefts2b[j];
-      addSvgInput({ x:left, y:yRow2, w:boxW, h:boxH, placeholder:"?", id:`p${idx}`, signed:false });
-
-      if(idx === task.values.length - 1){
-        const cx = left + boxW/2;
-        svg.appendChild(el("line", { x1:cx-78, y1:baseY+78, x2:cx+78, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
-        svg.appendChild(el("line", { x1:cx-78, y1:baseY+86, x2:cx+78, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
-      }
+    if(idx === task.values.length - 1){
+      const cx = left + boxW/2;
+      svg.appendChild(el("line", { x1:cx-90, y1:baseY+78, x2:cx+90, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
+      svg.appendChild(el("line", { x1:cx-90, y1:baseY+86, x2:cx+90, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
     }
   }
 
@@ -591,7 +546,7 @@ function drawTaskSVG(task){
   };
 }
 
-/* ======================= Check / Progress / LearningView ======================= */
+/* ======================= Check / Progress / LV ======================= */
 function markWrong(inp){
   inp.style.borderColor = "#b91c1c";
   inp.style.boxShadow = "0 0 0 3px rgba(185,28,28,.18)";
@@ -601,22 +556,18 @@ function resetMark(inp){
   inp.style.boxShadow = "none";
 }
 
-checkBtn.addEventListener("click", () => checkAll());
-
 function checkAll(){
   primeAudio();
   inputs.forEach(resetMark);
 
   const wrong = [];
 
-  // Sprünge prüfen: +/− Pflicht
   for(let i=0;i<task.partsSigned.length;i++){
     const inp = document.getElementById(`jump${i}`);
     const parsed = parseSignedNumber(inp.value);
     if(!parsed.ok || parsed.value !== task.partsSigned[i]) wrong.push(inp);
   }
 
-  // Zwischenresultate prüfen
   for(let i=1;i<task.values.length;i++){
     const inp = document.getElementById(`p${i}`);
     const given = Number(inp.value);
@@ -633,13 +584,11 @@ function checkAll(){
 
     if(solvedCorrect >= 20){
       setTimeout(()=>playSound(sndWon), 200);
-
       try{
         if(window.parent && window.parent !== window){
           window.parent.postMessage("AppSolved","*");
         }
       }catch(e){}
-
       inputs.forEach(i => i.disabled = true);
       checkBtn.disabled = true;
 
@@ -647,12 +596,9 @@ function checkAll(){
         feedback.textContent = "20 Aufgaben richtig gelöst! 🎉";
         feedback.className = "feedback ok";
       }, 220);
-
       return;
     }
-
     setTimeout(newTask, 650);
-
   } else {
     playSound(sndError);
     feedback.textContent = "Noch nicht ganz – rote Felder korrigieren und erneut prüfen.";
@@ -660,6 +606,16 @@ function checkAll(){
     wrong.forEach(markWrong);
     wrong[0].focus();
   }
+}
+
+/* ======================= Enable check ======================= */
+function updateCheckEnabled(){
+  const allFilled = inputs.length > 0 && inputs.every(i => (i.value || "").trim() !== "");
+  checkBtn.disabled = !allFilled;
+}
+function focusFirstEmpty(){
+  const f = inputs.find(i => (i.value || "").trim() === "");
+  if(f) f.focus();
 }
 </script>
 </body>

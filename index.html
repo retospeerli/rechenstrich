@@ -90,6 +90,8 @@
     <div class="board">
       <div class="eq" id="eqText">—</div>
       <div class="line"></div>
+
+      <!-- viewBox-Höhe wird dynamisch angepasst, wenn 2 Zeilen nötig sind -->
       <svg id="svg" viewBox="0 0 920 290" aria-label="Rechenstrich-Aufgabe"></svg>
 
       <div class="actions">
@@ -110,7 +112,7 @@
 </div>
 
 <script>
-/* ======================= State / DOM ======================= */
+/* ======================= DOM / State ======================= */
 const svg = document.getElementById("svg");
 const eqText = document.getElementById("eqText");
 const feedback = document.getElementById("feedback");
@@ -133,7 +135,7 @@ const sndError   = document.getElementById("snd-error");
 const sndWon     = document.getElementById("snd-won");
 
 let ZR = 100;
-let solvedCorrect = 0;         // zählt nur vollständig richtig gelöste Aufgaben (max 20)
+let solvedCorrect = 0;         // 0..20 (nur vollständig richtige Aufgaben)
 let task = null;               // {mode,a,b,partsUnsigned,partsSigned,values}
 let inputs = [];               // alle Inputs (Sprünge + Resultate)
 let audioPrimed = false;
@@ -219,16 +221,15 @@ function newTask(){
 
   const mode = (Math.random() < 0.5) ? "add" : "sub";
 
-  // Werte so wählen, dass Resultat im Zahlenraum bleibt
+  // Zahlen wählen: Ergebnis muss im Zahlenraum bleiben
   const aMin = (ZR === 100) ? 10 : 100;
   const aMax = (ZR === 100) ? 99 : 999;
 
   let a = 0, b = 0, res = 0;
-  for(let tries=0; tries<700; tries++){
+  for(let tries=0; tries<900; tries++){
     a = randInt(aMin, aMax);
     b = randInt(aMin, aMax);
     res = (mode === "add") ? (a + b) : (a - b);
-
     if (mode === "add") {
       if (res <= ZR) break;
     } else {
@@ -249,9 +250,9 @@ function newTask(){
   task = { mode, a, b, partsUnsigned, partsSigned, values };
 
   eqText.textContent = `${a} ${(mode==="add")?"+":"−"} ${b} =`;
+  updateHeader();
 
   drawTaskSVG(task);
-  updateHeader();
   updateCheckEnabled();
   focusFirstEmpty();
 }
@@ -348,17 +349,20 @@ function focusFirstEmpty(){
   if(f) f.focus();
 }
 
-/* ======================= drawTaskSVG (NO OVERLAP for result boxes) ======================= */
+/* ======================= drawTaskSVG (NO OVERLAP GUARANTEE) ======================= */
 function drawTaskSVG(task){
   clearSvg();
   inputs = [];
+
+  // Standardhöhe; wird ggf. auf 2 Zeilen erhöht
+  let vbH = 290;
 
   const W = 920;
   const baseY = 220;
   const leftPad = 90;
   const rightPad = 90;
 
-  // X-Positionen nach Ratio (1er=1, 10er=2, 100er=4), nutzt volle Breite
+  // X-Positionen nach Ratio (1/2/4), volle Breite
   const usableW = W - leftPad - rightPad;
   const weights = task.partsUnsigned.map(p => {
     const ap = Math.abs(p);
@@ -402,69 +406,143 @@ function drawTaskSVG(task){
     svg.appendChild(t);
   }
 
-  // ---------- Zwischenresultate/Endresultat: Constraint-Layout mit Mindestabstand + Rand
+  // ---------- Zwischenresultate/Endresultat: harte Constraints + 2-Zeilen-Failsafe
   const boxW = 116;
   const boxH = 46;
-  const yBox = baseY + 24;
-  const gap = 14; // MINIMALABSTAND
+
+  const yRow1 = baseY + 24;
+  const yRow2 = baseY + 24 + 56;
+
+  const gap = 16; // MINIMALABSTAND (sicher)
   const minLeft = leftPad - 10;
   const maxLeft = (W - rightPad) - boxW + 10;
 
   const m = task.values.length - 1; // p1..pN
-  const lefts = new Array(m);
+  const desired = new Array(m);
 
-  // Startpositionen zentriert am Tick
-  for (let i = 0; i < m; i++) {
-    const tickX = xs[i + 1];
-    lefts[i] = tickX - boxW / 2;
+  for (let i = 0; i < m; i++){
+    desired[i] = xs[i + 1] - boxW / 2;
   }
 
-  function clampAll(arr){
-    for (let i = 0; i < arr.length; i++) {
-      arr[i] = Math.max(minLeft, Math.min(maxLeft, arr[i]));
+  function hasOverlap(lefts){
+    for(let i=1;i<lefts.length;i++){
+      if(lefts[i] < lefts[i-1] + boxW + gap) return true;
     }
-  }
-  function enforceForward(arr){
-    for (let i = 1; i < arr.length; i++) {
-      const min = arr[i - 1] + boxW + gap;
-      if (arr[i] < min) arr[i] = min;
-    }
-  }
-  function enforceBackward(arr){
-    for (let i = arr.length - 2; i >= 0; i--) {
-      const max = arr[i + 1] - (boxW + gap);
-      if (arr[i] > max) arr[i] = max;
-    }
+    return false;
   }
 
-  // Iterative Entspannung
-  for (let it = 0; it < 3; it++) {
-    clampAll(lefts);
-    enforceForward(lefts);
+  function solveRow(desiredLefts){
+    const lefts = desiredLefts.slice();
 
-    const overflow = lefts[lefts.length - 1] - maxLeft;
-    if (overflow > 0) {
-      for (let i = 0; i < lefts.length; i++) lefts[i] -= overflow;
+    // clamp
+    for(let i=0;i<lefts.length;i++){
+      lefts[i] = Math.max(minLeft, Math.min(maxLeft, lefts[i]));
     }
 
-    clampAll(lefts);
-    enforceBackward(lefts);
-    clampAll(lefts);
-    enforceForward(lefts);
+    // right-to-left: hard max distance
+    lefts[lefts.length-1] = Math.max(minLeft, Math.min(maxLeft, lefts[lefts.length-1]));
+    for(let i=lefts.length-2;i>=0;i--){
+      const maxAllowed = lefts[i+1] - (boxW + gap);
+      lefts[i] = Math.min(lefts[i], maxAllowed);
+      lefts[i] = Math.max(minLeft, lefts[i]);
+    }
+
+    // shift right if left too small
+    const under = minLeft - lefts[0];
+    if(under > 0){
+      for(let i=0;i<lefts.length;i++) lefts[i] += under;
+    }
+
+    // left-to-right: hard min distance
+    for(let i=1;i<lefts.length;i++){
+      const minAllowed = lefts[i-1] + boxW + gap;
+      if(lefts[i] < minAllowed) lefts[i] = minAllowed;
+    }
+
+    // shift left if right overflow
+    const overflow = lefts[lefts.length-1] - maxLeft;
+    if(overflow > 0){
+      for(let i=0;i<lefts.length;i++) lefts[i] -= overflow;
+    }
+
+    // final clamp + repair
+    for(let i=0;i<lefts.length;i++){
+      lefts[i] = Math.max(minLeft, Math.min(maxLeft, lefts[i]));
+    }
+    for(let i=1;i<lefts.length;i++){
+      const minAllowed = lefts[i-1] + boxW + gap;
+      if(lefts[i] < minAllowed) lefts[i] = minAllowed;
+    }
+
+    return lefts;
   }
+
+  // 1 Zeile versuchen
+  let leftsRow1 = solveRow(desired);
+  let useTwoRows = hasOverlap(leftsRow1);
+
+  let splitIndex = m;
+  let row1 = [];
+  let row2 = [];
+  let lefts2a = null;
+  let lefts2b = null;
+
+  if(useTwoRows){
+    // zweite Reihe nimmt standardmässig die letzten 2 Kästchen
+    splitIndex = Math.max(1, m - 2);
+    row1 = desired.slice(0, splitIndex);
+    row2 = desired.slice(splitIndex);
+
+    lefts2a = solveRow(row1);
+    lefts2b = solveRow(row2);
+
+    // falls immer noch problematisch (theoretisch), noch aggressiver splitten
+    if(hasOverlap(lefts2a) || hasOverlap(lefts2b)){
+      splitIndex = Math.max(1, m - 1);
+      row1 = desired.slice(0, splitIndex);
+      row2 = desired.slice(splitIndex);
+      lefts2a = solveRow(row1);
+      lefts2b = solveRow(row2);
+    }
+
+    vbH = 350; // mehr Höhe, damit Zeile 2 nicht abgeschnitten wird
+  }
+
+  // viewBox anpassen
+  svg.setAttribute("viewBox", `0 0 920 ${vbH}`);
 
   // Zeichnen
-  for (let i = 0; i < m; i++) {
-    const idx = i + 1;
-    const left = lefts[i];
+  if(!useTwoRows){
+    for (let i = 0; i < m; i++){
+      const idx = i + 1;
+      const left = leftsRow1[i];
 
-    addSvgInput({ x:left, y:yBox, w:boxW, h:boxH, placeholder:"?", id:`p${idx}`, signed:false });
+      addSvgInput({ x:left, y:yRow1, w:boxW, h:boxH, placeholder:"?", id:`p${idx}`, signed:false });
 
-    // Doppelunterstrich beim Endergebnis
-    if(idx === task.values.length - 1){
-      const cx = left + boxW/2;
-      svg.appendChild(el("line", { x1:cx-78, y1:baseY+78, x2:cx+78, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
-      svg.appendChild(el("line", { x1:cx-78, y1:baseY+86, x2:cx+78, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
+      if(idx === task.values.length - 1){
+        const cx = left + boxW/2;
+        svg.appendChild(el("line", { x1:cx-78, y1:baseY+78, x2:cx+78, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
+        svg.appendChild(el("line", { x1:cx-78, y1:baseY+86, x2:cx+78, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
+      }
+    }
+  } else {
+    // Reihe 1
+    for(let i=0;i<row1.length;i++){
+      const idx = i + 1;
+      const left = lefts2a[i];
+      addSvgInput({ x:left, y:yRow1, w:boxW, h:boxH, placeholder:"?", id:`p${idx}`, signed:false });
+    }
+    // Reihe 2
+    for(let j=0;j<row2.length;j++){
+      const idx = splitIndex + j + 1;
+      const left = lefts2b[j];
+      addSvgInput({ x:left, y:yRow2, w:boxW, h:boxH, placeholder:"?", id:`p${idx}`, signed:false });
+
+      if(idx === task.values.length - 1){
+        const cx = left + boxW/2;
+        svg.appendChild(el("line", { x1:cx-78, y1:baseY+78, x2:cx+78, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
+        svg.appendChild(el("line", { x1:cx-78, y1:baseY+86, x2:cx+78, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
+      }
     }
   }
 
@@ -513,7 +591,7 @@ function drawTaskSVG(task){
   };
 }
 
-/* ======================= Check / Progress / LV ======================= */
+/* ======================= Check / Progress / LearningView ======================= */
 function markWrong(inp){
   inp.style.borderColor = "#b91c1c";
   inp.style.boxShadow = "0 0 0 3px rgba(185,28,28,.18)";

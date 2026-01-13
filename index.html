@@ -35,6 +35,11 @@
   .ok{color:#15803d;}
   .err{color:#b91c1c;}
   .hint{margin-top:8px;text-align:center;color:#64748b;font-size:.92rem;}
+
+  /* Farb-Legende (optional, klein) */
+  .legend{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:6px;font-size:.9rem;color:#334155;}
+  .swatch{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:14px;height:14px;border-radius:4px;display:inline-block;border:2px solid transparent;}
 </style>
 </head>
 <body>
@@ -66,6 +71,12 @@
       <div class="eq" id="eqText">—</div>
       <div class="line"></div>
       <svg id="svg" viewBox="0 0 920 300" aria-label="Rechenstrich-Aufgabe"></svg>
+
+      <div class="legend" aria-label="Farblegende">
+        <span class="swatch"><span class="dot" style="border-color:#16a34a;background:rgba(22,163,74,.18)"></span>1. Zwischenresultat</span>
+        <span class="swatch"><span class="dot" style="border-color:#2563eb;background:rgba(37,99,235,.18)"></span>letztes Zwischenresultat</span>
+        <span class="swatch"><span class="dot" style="border-color:#dc2626;background:rgba(220,38,38,.18)"></span>Endergebnis</span>
+      </div>
 
       <div class="actions">
         <button class="btn primary" id="checkBtn" type="button" disabled>Überprüfen</button>
@@ -111,6 +122,21 @@ let solvedCorrect = 0;
 let task = null;
 let inputs = [];
 let audioPrimed = false;
+
+/* ======================= Farben Plan B ======================= */
+/*
+  Vorgabe:
+  - Endergebnis: rot
+  - letztes Zwischenresultat: blau
+  - erstes Zwischenresultat: grün
+  Alle anderen: neutral (grau)
+*/
+const COLOR = {
+  neutral: { stroke:"#222", box:"#94a3b8", fill:"rgba(148,163,184,.14)" },
+  first:   { stroke:"#16a34a", box:"#16a34a", fill:"rgba(22,163,74,.18)"  }, // grün
+  last:    { stroke:"#2563eb", box:"#2563eb", fill:"rgba(37,99,235,.18)"  }, // blau
+  final:   { stroke:"#dc2626", box:"#dc2626", fill:"rgba(220,38,38,.18)"  }  // rot
+};
 
 /* ======================= Audio ======================= */
 function playSound(a){
@@ -238,8 +264,8 @@ function parseSignedNumber(str){
   return { ok:Number.isFinite(v), value:v };
 }
 
-/* ---------- input in SVG ---------- */
-function addSvgInput({x,y,w=90,h=44, placeholder="?", id="", signed=false, expectedSign="+"}){
+/* ======================= Input in SVG with Color ======================= */
+function addSvgInput({x,y,w=120,h=46, placeholder="?", id="", signed=false, expectedSign="+", theme=COLOR.neutral}){
   const fo = el("foreignObject", {x, y, width:w, height:h});
   const div = document.createElement("div");
   div.style.width = "100%";
@@ -261,26 +287,29 @@ function addSvgInput({x,y,w=90,h=44, placeholder="?", id="", signed=false, expec
     inp.spellcheck = false;
   }
 
+  // Farb-Style (Rahmen voll, Background transparent)
   inp.style.width = "100%";
   inp.style.height = "100%";
   inp.style.boxSizing = "border-box";
-  inp.style.border = "2px solid #94a3b8";
+  inp.style.border = `3px solid ${theme.box}`;
   inp.style.borderRadius = "10px";
   inp.style.textAlign = "center";
   inp.style.fontSize = "24px";
   inp.style.fontWeight = "900";
-  inp.style.background = "#fff";
+  inp.style.background = theme.fill;
   inp.style.color = "#111827";
 
   inp.addEventListener("input", () => {
     primeAudio();
     feedback.textContent = "";
     feedback.className = "feedback";
-    inp.style.borderColor = "#94a3b8";
+    // reset wrong highlight to theme
+    inp.style.borderColor = theme.box;
     inp.style.boxShadow = "none";
     updateCheckEnabled();
   });
 
+  // Vorzeichen automatisch ergänzen
   inp.addEventListener("blur", () => {
     if(!signed) return;
     const raw = (inp.value || "").trim();
@@ -295,6 +324,9 @@ function addSvgInput({x,y,w=90,h=44, placeholder="?", id="", signed=false, expec
     if(e.key === "Enter" && !checkBtn.disabled) checkAll();
   });
 
+  // für spätere Farb-Resets speichern
+  inp.dataset.baseBorder = theme.box;
+
   div.appendChild(inp);
   fo.appendChild(div);
   svg.appendChild(fo);
@@ -303,118 +335,7 @@ function addSvgInput({x,y,w=90,h=44, placeholder="?", id="", signed=false, expec
   return inp;
 }
 
-function updateCheckEnabled(){
-  const allFilled = inputs.length > 0 && inputs.every(i => (i.value || "").trim() !== "");
-  checkBtn.disabled = !allFilled;
-}
-function focusFirstEmpty(){
-  const f = inputs.find(i => (i.value || "").trim() === "");
-  if(f) f.focus();
-}
-
-/* ======================= Layout: "zentriert so gut wie möglich" ohne Überlappung ======================= */
-/*
-  Wir wollen left[i] nahe desiredLeft[i] (mittig unter Tick),
-  unter Zwang: left[i+1] - left[i] >= D, und bounds.
-  Trick: y[i] = left[i] - i*D => y nondecreasing.
-  Wir projizieren desiredY auf monotone Folge (PAV), mit bounds.
-*/
-function pavNondecreasing(values){
-  // isotonic regression (PAV) for nondecreasing sequence
-  const n = values.length;
-  const v = values.slice();
-  const w = new Array(n).fill(1);
-
-  // blocks: start, end, avg, weight
-  let starts = [];
-  let avgs = [];
-  let weights = [];
-
-  for(let i=0;i<n;i++){
-    starts.push(i);
-    avgs.push(v[i]);
-    weights.push(1);
-
-    // merge while decreasing
-    while(avgs.length >= 2){
-      const k = avgs.length - 1;
-      if(avgs[k-1] <= avgs[k]) break;
-
-      const w1 = weights[k-1], w2 = weights[k];
-      const a1 = avgs[k-1], a2 = avgs[k];
-      const mergedAvg = (a1*w1 + a2*w2) / (w1+w2);
-
-      avgs[k-1] = mergedAvg;
-      weights[k-1] = w1+w2;
-      avgs.pop(); weights.pop(); starts.pop();
-    }
-  }
-
-  // expand blocks
-  const out = new Array(n);
-  let idx = 0;
-  for(let b=0;b<avgs.length;b++){
-    const start = starts[b];
-    const end = (b === avgs.length-1) ? (n-1) : (starts[b+1]-1);
-    for(let i=start;i<=end;i++) out[i] = avgs[b];
-    idx = end+1;
-  }
-  return out;
-}
-
-function layoutResultBoxesCentered(desiredLefts, minLeft, maxLeft, D){
-  const m = desiredLefts.length;
-  if(m === 0) return [];
-
-  // transform
-  const desiredY = new Array(m);
-  const yMin = new Array(m);
-  const yMax = new Array(m);
-
-  for(let i=0;i<m;i++){
-    desiredY[i] = desiredLefts[i] - i*D;
-    yMin[i] = minLeft - i*D;
-    yMax[i] = maxLeft - i*D;
-  }
-
-  // iterative bounded projection: clamp -> PAV -> clamp -> PAV ...
-  let y = desiredY.slice();
-  for(let it=0; it<6; it++){
-    // clamp
-    for(let i=0;i<m;i++){
-      if(y[i] < yMin[i]) y[i] = yMin[i];
-      if(y[i] > yMax[i]) y[i] = yMax[i];
-    }
-    // monotone projection
-    y = pavNondecreasing(y);
-  }
-
-  // reconstruct lefts
-  const lefts = new Array(m);
-  for(let i=0;i<m;i++){
-    let left = y[i] + i*D;
-    // final clamp safety
-    left = Math.max(minLeft, Math.min(maxLeft, left));
-    lefts[i] = left;
-  }
-
-  // final hard repair (just in case floating)
-  for(let i=1;i<m;i++){
-    const minAllowed = lefts[i-1] + D;
-    if(lefts[i] < minAllowed) lefts[i] = minAllowed;
-  }
-  const overflow = lefts[m-1] - maxLeft;
-  if(overflow > 0){
-    for(let i=0;i<m;i++) lefts[i] -= overflow;
-  }
-  for(let i=0;i<m;i++){
-    lefts[i] = Math.max(minLeft, Math.min(maxLeft, lefts[i]));
-  }
-
-  return lefts;
-}
-
-/* ======================= drawTaskSVG ======================= */
+/* ======================= drawTaskSVG (Color mapping) ======================= */
 function drawTaskSVG(task){
   clearSvg();
   inputs = [];
@@ -424,7 +345,7 @@ function drawTaskSVG(task){
   const leftPad = 90;
   const rightPad = 90;
 
-  // X-Positionen nach Ratio (1/2/4) über volle Breite
+  // X-Positionen nach Ratio (1/2/4), volle Breite
   const usableW = W - leftPad - rightPad;
   const weights = task.partsUnsigned.map(p => {
     const ap = Math.abs(p);
@@ -445,20 +366,43 @@ function drawTaskSVG(task){
     stroke:"#222", "stroke-width":6, "stroke-linecap":"round", opacity:0.75
   }));
 
-  // Ticks
-  for(let i=0;i<task.values.length;i++){
-    const x = xs[i];
+  // Starttick (neutral)
+  svg.appendChild(el("line", {
+    x1:xs[0], y1:baseY-16, x2:xs[0], y2:baseY+16,
+    stroke:"#222", "stroke-width":6, "stroke-linecap":"round", opacity:0.85
+  }));
+
+  // Farbzuteilung für Resultat-Ticks:
+  // p1 -> grün, p(last-1) -> blau, p(last) -> rot
+  const m = task.values.length - 1;
+  const idxFirst = 1;
+  const idxLastIntermediate = (m >= 2) ? (m - 1) : null;  // z.B. bei 2 Schritten: p1 ist zugleich "letztes Zwischenergebnis"
+  const idxFinal = m;
+
+  function themeForP(idx){
+    if(idx === idxFinal) return COLOR.final;
+    if(m === 1) return COLOR.final; // nur ein Ergebnis -> gleich Endergebnis
+    if(idx === idxFirst && idx === idxLastIntermediate) return COLOR.last; // Spezial: nur 2 Kästchen? (m=2) -> p1 ist letztes Zwischenresultat
+    if(idx === idxFirst) return COLOR.first;
+    if(idxLastIntermediate !== null && idx === idxLastIntermediate) return COLOR.last;
+    return COLOR.neutral;
+  }
+
+  // Ticks (p1..pN) farbig + neutral sonst
+  for(let i=1;i<task.values.length;i++){
+    const idx = i; // p idx
+    const theme = themeForP(idx);
+
     svg.appendChild(el("line", {
-      x1:x, y1:baseY-16, x2:x, y2:baseY+16,
-      stroke:"#222", "stroke-width":6, "stroke-linecap":"round", opacity:0.85
+      x1:xs[i], y1:baseY-16, x2:xs[i], y2:baseY+16,
+      stroke:theme.stroke, "stroke-width":7, "stroke-linecap":"round", opacity:0.95
     }));
   }
 
   // Startzahl
   {
-    const x = xs[0];
     const t = el("text", {
-      x, y: baseY + 56,
+      x: xs[0], y: baseY + 56,
       "text-anchor":"middle",
       "font-size":44,
       "font-weight":600,
@@ -468,40 +412,29 @@ function drawTaskSVG(task){
     svg.appendChild(t);
   }
 
-  // ---------- Zwischenresultate: mittig (best possible) + NIE überlappend
-  const boxW = 132;            // etwas breiter -> bessere Lesbarkeit, aber Layout hält Abstand ein
+  // Resultat-Kästchen (FARBE!)
+  const boxW = 132;
   const boxH = 46;
   const yBox = baseY + 24;
 
-  const gap = 16;              // MINIMALABSTAND zwischen Kästchen
-  const D = boxW + gap;
+  // Position: direkt zentriert unter Tick (Plan B: Farbe statt perfekte Position)
+  // (wir lassen es bewusst einfach – keine Kollisionslogik mehr erzwingen)
+  for(let i=1;i<task.values.length;i++){
+    const idx = i; // p idx
+    const theme = themeForP(idx);
+    const left = xs[i] - boxW/2;
 
-  const minLeft = leftPad - 10;
-  const maxLeft = (W - rightPad) - boxW + 10;
+    addSvgInput({ x:left, y:yBox, w:boxW, h:boxH, placeholder:"?", id:`p${idx}`, signed:false, theme });
 
-  const m = task.values.length - 1; // p1..pN
-  const desiredLefts = [];
-  for(let i=0;i<m;i++){
-    const tickX = xs[i+1];
-    desiredLefts.push(tickX - boxW/2);
-  }
-
-  const lefts = layoutResultBoxesCentered(desiredLefts, minLeft, maxLeft, D);
-
-  for(let i=0;i<m;i++){
-    const idx = i + 1;
-    const left = lefts[i];
-
-    addSvgInput({ x:left, y:yBox, w:boxW, h:boxH, placeholder:"?", id:`p${idx}`, signed:false });
-
-    if(idx === task.values.length - 1){
+    // Doppelunterstrich beim Endergebnis (rot)
+    if(idx === idxFinal){
       const cx = left + boxW/2;
-      svg.appendChild(el("line", { x1:cx-90, y1:baseY+78, x2:cx+90, y2:baseY+78, stroke:"#111", "stroke-width":3, opacity:0.9 }));
-      svg.appendChild(el("line", { x1:cx-90, y1:baseY+86, x2:cx+90, y2:baseY+86, stroke:"#111", "stroke-width":3, opacity:0.9 }));
+      svg.appendChild(el("line", { x1:cx-90, y1:baseY+78, x2:cx+90, y2:baseY+78, stroke:COLOR.final.stroke, "stroke-width":3, opacity:0.95 }));
+      svg.appendChild(el("line", { x1:cx-90, y1:baseY+86, x2:cx+90, y2:baseY+86, stroke:COLOR.final.stroke, "stroke-width":3, opacity:0.95 }));
     }
   }
 
-  // ---------- Bögen + Sprunginputs (Vorzeichen Pflicht)
+  // Bögen + Sprunginputs (neutral, da es um Schrittwerte geht)
   const laneTopY = [ 90, 125, 155, 175 ];
   const arcTopY  = [ 150, 170, 185, 195 ];
   const arcStroke = "#555";
@@ -524,7 +457,8 @@ function drawTaskSVG(task){
       placeholder: expectedSign + "?",
       id: `jump${i}`,
       signed: true,
-      expectedSign
+      expectedSign,
+      theme: COLOR.neutral
     });
   }
 
@@ -536,7 +470,9 @@ function drawTaskSVG(task){
     inputs.forEach(i=>{
       i.value = "";
       i.disabled = false;
-      i.style.borderColor = "#94a3b8";
+      // zurück auf Basisfarbe
+      const base = i.dataset.baseBorder || "#94a3b8";
+      i.style.borderColor = base;
       i.style.boxShadow = "none";
     });
     feedback.textContent = "";
@@ -546,13 +482,14 @@ function drawTaskSVG(task){
   };
 }
 
-/* ======================= Check / Progress / LV ======================= */
+/* ======================= Check / LV ======================= */
 function markWrong(inp){
   inp.style.borderColor = "#b91c1c";
   inp.style.boxShadow = "0 0 0 3px rgba(185,28,28,.18)";
 }
 function resetMark(inp){
-  inp.style.borderColor = "#94a3b8";
+  const base = inp.dataset.baseBorder || "#94a3b8";
+  inp.style.borderColor = base;
   inp.style.boxShadow = "none";
 }
 
@@ -591,7 +528,6 @@ function checkAll(){
       }catch(e){}
       inputs.forEach(i => i.disabled = true);
       checkBtn.disabled = true;
-
       setTimeout(()=>{
         feedback.textContent = "20 Aufgaben richtig gelöst! 🎉";
         feedback.className = "feedback ok";
@@ -617,6 +553,9 @@ function focusFirstEmpty(){
   const f = inputs.find(i => (i.value || "").trim() === "");
   if(f) f.focus();
 }
+
+/* ======================= Start ======================= */
+updateHeader();
 </script>
 </body>
 </html>
